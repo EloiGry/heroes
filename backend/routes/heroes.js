@@ -4,6 +4,7 @@ const app = express()
 
 app.use(express.json())
 
+
 let heroes = require("../heroes.json")
 
 app.get("/", (req, res) => {
@@ -39,6 +40,7 @@ const isHeroExist = (req, res, next) => {
 
 app.post("/", isHeroExist, (req, res) => {
     const heroe = {
+      slug : req.body.name.toLowerCase().replace(/[^\w]/gi,'-'),
       ...req.body
     }
     heroes = [ ...heroes, heroe ]
@@ -46,15 +48,15 @@ app.post("/", isHeroExist, (req, res) => {
 })
 
 const format = (req, res, next) => {
-  const a = Object.keys(heroes[0])
-  const b = Object.keys(req.body)
-  if (JSON.stringify(a) === JSON.stringify(b)) {
-    next()
+  const allowedKeys = Object.keys(heroes[0])
+  const bodyKeys = Object.keys(req.body)
+  const invalidKey = bodyKeys.find(key => !allowedKeys.includes(key))
+
+  if (invalidKey) {
+    res.status(400).send("Requete invalide")
   } else {
-    res.status(409).send("Error")
+    next()
   }
-  console.log(JSON.stringify(a))
-  console.log(JSON.stringify(b));
 
 }
 
@@ -90,18 +92,23 @@ app.delete("/:slug", deleteHero, (req, res) => {
 app.delete("/:slug/power/:power", deleteHero, (req, res) => {
   const { slug, power} = req.params
   const heroe = heroes.find(heroe => heroe.slug === slug)
-  const deletePower = heroe.power.findIndex(heroe => heroe.slug === slug)
-  heroe.power.splice(deletePower, 1)
+  heroe.power = heroe.power.filter(p => p !== power)
   res.json(`Le pouvoir ${power} de ${slug} a été effacé correctement`)
 })
 
-app.put("/:slug", format, (req, res) => {
+app.put("/:slug", format, deleteHero, (req, res) => {
   const { slug } = req.params
-  const heroe = heroes.findIndex(heroe => heroe.slug === slug)
-  const hero = {...req.body}
-  heroes.splice(heroe, 1, hero)
-  res.json(heroes)
+  const index = heroes.findIndex(hero => hero.slug === slug)
+  let hero = heroes[index]
 
+  hero = {
+    ...hero,
+
+    
+    ...req.body,
+    slug: req.body.name.toLowerCase().replace(/[^\w]/gi, '-')
+
+  }
 })
 
 
